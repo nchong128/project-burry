@@ -4,6 +4,7 @@ node_modules
 
 .aws-sam/build/
 .aws-sam/.cdk-out/
+.aws-sam/
 
 # CDK asset staging directory
 .cdk.staging
