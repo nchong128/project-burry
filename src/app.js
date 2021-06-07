@@ -14,7 +14,7 @@ const getProductIdFromLink = (link) => {
     return matches[1];
 }
 
-const retrievePrice = async (link) => {
+const getProductDetails = async (link) => {
     // Find product ID
     const productId = getProductIdFromLink(link);
 
@@ -27,7 +27,8 @@ const retrievePrice = async (link) => {
             responseType: 'json'
         });
 
-        return response.body.Product.Price && response.body.Product.InstorePrice;
+        // return response.body.Product.Price && response.body.Product.InstorePrice;
+        return response.body;
     } catch (error) {
         console.error(error.code);
         console.error(error.message);
@@ -49,13 +50,43 @@ exports.handler = async function(event) {
         const pageId = product.id;
 
         if (productUrl) {
-            const price = await retrievePrice(productUrl);
-            console.log(`Price of ${productName} is ${price} AUD`);
+            const productDetails = await getProductDetails(productUrl);
+            const currentPrice = Number(productDetails?.Product?.Price);
+            const prevPrice = Number(productDetails?.Product?.WasPrice);
+            const quantity = String(productDetails?.Product?.PackageSize);
+            const isDiscounted = Boolean(productDetails?.Product?.IsOnSpecial ||
+                productDetails?.Product?.InstoreIsOnSpecial);
+            const savingsAmount = Number(productDetails?.Product?.SavingsAmount);
+            const savingsPct = savingsAmount / prevPrice * 100;
+
+            const priceText = isDiscounted ? `$${currentPrice} (${savingsPct}% off)` : `$${currentPrice}`;
+
             await notion.pages.update({
                 page_id: pageId,
                 properties: {
                     'Price': {
-                        "number": price
+                        "rich_text": [
+                            {
+                                "type": "text",
+                                "text": {
+                                    "content": priceText
+                                }
+                            },
+
+                        ]
+                    },
+                    'Quantity': {
+                        "rich_text": [
+                            {
+                                "type": "text",
+                                "text": {
+                                    "content": quantity
+                                }
+                            }
+                        ]
+                    },
+                    'On-Special': {
+                        "checkbox": isDiscounted
                     }
                 }
             });
